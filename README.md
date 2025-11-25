@@ -1,15 +1,19 @@
 # MT5 Bridge API
 
-Python bridge service that connects multiple MT5 accounts (XM, Exness, etc.) to your web application without requiring direct MT5 login.
+Python bridge service that connects multiple MT5 accounts (XM, Exness, JustMarkets, etc.) to your web application.
+
+## ⚠️ Important: Windows Only
+
+**The MT5 Python library only works on Windows.** This application must run on a Windows machine where MetaTrader 5 terminal is installed.
 
 ## Features
 
-- **Multi-Account Management**: Connect multiple broker accounts (XM, Exness, IC Markets, etc.)
+- **Multi-Account Management**: Connect multiple broker accounts (XM, Exness, JustMarkets, IC Markets, etc.)
 - **Secure Credential Storage**: Encrypted password storage using Fernet encryption
-- **Real-time Data Sync**: WebSocket-based live updates every 2 seconds
+- **Real-time Data Sync**: WebSocket-based live updates
 - **Auto-Reconnect**: Automatic reconnection on disconnections
 - **REST API**: Full CRUD operations for account management
-- **Background Workers**: Celery-based periodic sync workers
+- **No Manual MT5 Login Required**: Connect accounts directly via API (for known servers)
 
 ## Architecture
 
@@ -21,244 +25,199 @@ Web App → REST API → Python Bridge → MT5 Terminal
          WebSocket Updates → Web App
 ```
 
-## Installation
+## Quick Start (Windows)
 
 ### Prerequisites
 
-- Python 3.9+
-- PostgreSQL
-- Redis (for Celery)
-- MetaTrader 5 Terminal installed on Windows
+- Windows 10/11 or Windows Server
+- Python 3.10+
+- MetaTrader 5 Terminal installed
+- Docker Desktop (optional, for PostgreSQL/Redis)
 
-### Setup
+### 1. Install Dependencies
 
-1. **Clone and install dependencies**:
-```bash
-cd mt5-bridge
+```powershell
 pip install -r requirements.txt
 ```
 
-2. **Configure environment**:
-```bash
-cp .env.example .env
+### 2. Start Database Services (Docker)
+
+```powershell
+docker-compose up -d
+```
+
+This starts PostgreSQL and Redis containers.
+
+### 3. Configure Environment
+
+```powershell
+copy .env.example .env
 # Edit .env with your settings
 ```
 
-3. **Initialize database**:
-```bash
-# Database will auto-initialize on first run
-# Or manually with alembic:
-alembic init alembic
-alembic revision --autogenerate -m "Initial migration"
-alembic upgrade head
+### 4. Run the API
+
+```powershell
+# Option 1: Using the deployment script
+.\deploy_windows.ps1
+
+# Option 2: Manual
+uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-4. **Start services**:
+### 5. Test the API
 
-Terminal 1 - API Server:
-```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-Terminal 2 - Celery Worker:
-```bash
-celery -A app.workers.sync_worker worker --loglevel=info
-```
-
-Terminal 3 - Celery Beat (scheduler):
-```bash
-celery -A app.workers.sync_worker beat --loglevel=info
+```powershell
+python test_workflow.py
 ```
 
 ## API Endpoints
 
+### Health Check
+
+- **GET** `/` - Basic health check
+- **GET** `/health` - Detailed health status
+
 ### Brokers
 
-**GET** `/api/accounts/brokers`
-- Get list of available brokers and their servers
+- **GET** `/api/accounts/brokers` - List available brokers and servers
 
 ### Accounts
 
-**POST** `/api/accounts/`
-- Create and connect new MT5 account
-- Body: `{user_id, broker_name, account_number, password, server}`
-
-**GET** `/api/accounts/?user_id={user_id}`
-- List all accounts for a user
-
-**GET** `/api/accounts/{account_id}`
-- Get specific account details
-
-**PUT** `/api/accounts/{account_id}`
-- Update account credentials/server
-
-**DELETE** `/api/accounts/{account_id}`
-- Delete account and disconnect
-
-**POST** `/api/accounts/{account_id}/reconnect`
-- Manually reconnect account
-
-**POST** `/api/accounts/{account_id}/sync`
-- Force immediate sync
+- **POST** `/api/accounts/` - Create and connect MT5 account
+- **GET** `/api/accounts/?user_id={id}` - List user's accounts
+- **GET** `/api/accounts/{account_id}` - Get account details
+- **PUT** `/api/accounts/{account_id}` - Update account
+- **DELETE** `/api/accounts/{account_id}` - Delete account
+- **POST** `/api/accounts/{account_id}/reconnect` - Reconnect account
+- **POST** `/api/accounts/{account_id}/sync` - Force sync
 
 ### WebSocket
 
-**WS** `/api/ws/{user_id}`
-- Real-time updates for all user accounts
-- Receives: account balance, positions, orders updates
+- **WS** `/api/ws/{user_id}` - Real-time updates
 
 ## Usage Example
 
-### 1. Connect Account (Web App → API)
+### Connect an Account
 
 ```javascript
-// Frontend code
 const response = await fetch('http://localhost:8000/api/accounts/', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    user_id: 123,
-    broker_name: 'XM',
-    account_number: '12345678',
+    user_id: 1,
+    broker_name: 'JustMarkets',
+    account_number: '2001606102',
     password: 'your_password',
-    server: 'XMGlobal-MT5'
+    server: 'JustMarkets-Demo'
   })
 });
 
 const account = await response.json();
-console.log('Connected:', account);
+// { id: 1, status: 'connected', balance: 203.19, ... }
 ```
 
-### 2. WebSocket Connection
+### WebSocket Real-time Updates
 
 ```javascript
-const ws = new WebSocket('ws://localhost:8000/api/ws/123');
+const ws = new WebSocket('ws://localhost:8000/api/ws/1');
 
 ws.onmessage = (event) => {
   const message = JSON.parse(event.data);
-  
   if (message.type === 'account_update') {
-    console.log('Account update:', message.data);
-    // Update UI with new balance, positions, etc.
+    console.log('Balance:', message.data.balance);
+    console.log('Positions:', message.data.positions);
   }
 };
-
-// Keep alive
-setInterval(() => {
-  ws.send(JSON.stringify({ type: 'ping' }));
-}, 30000);
 ```
-
-### 3. Get Available Servers
-
-```javascript
-const brokers = await fetch('http://localhost:8000/api/accounts/brokers')
-  .then(r => r.json());
-
-// Display broker/server selection UI
-brokers.forEach(broker => {
-  console.log(broker.broker_name, broker.servers);
-});
-```
-
-## Data Flow
-
-### Account Connection Flow
-1. Web app sends credentials to `/api/accounts/`
-2. Bridge encrypts password with Fernet
-3. Bridge connects to MT5 with specified server
-4. On success, performs initial sync (account info, positions, orders)
-5. Saves to database
-6. Returns account details to web app
-7. WebSocket pushes initial data
-
-### Periodic Sync (Every 2 seconds)
-1. Celery Beat triggers `sync_all_accounts` task
-2. Worker queries all connected accounts
-3. For each account:
-   - Reconnect to MT5
-   - Fetch account info, positions, orders
-   - Update database
-   - Push updates via WebSocket
-
-### Auto-Reconnect
-- On connection failure, marks account as ERROR
-- Next sync attempt will retry connection
-- Configurable max retry attempts
-
-## Security
-
-- **Encryption**: Passwords encrypted with Fernet (AES-128)
-- **JWT Auth**: Token-based authentication (implement in production)
-- **CORS**: Configurable allowed origins
-- **Environment Variables**: Sensitive data in .env
 
 ## Configuration
 
-Edit `.env`:
+### Environment Variables (.env)
 
 ```env
 # Database
-DATABASE_URL=postgresql://user:pass@localhost:5432/mt5bridge
+DATABASE_URL=postgresql://mt5bridge:mt5bridge_password@localhost:5432/mt5bridge
 
-# Security - CHANGE THESE!
-SECRET_KEY=generate-random-secret-key
-ENCRYPTION_KEY=generate-random-encryption-key
+# Security - CHANGE IN PRODUCTION!
+SECRET_KEY=your-secret-key-change-this
+ENCRYPTION_KEY=your-encryption-key-change-this
 
-# Sync Settings
-SYNC_INTERVAL_SECONDS=2
-AUTO_RECONNECT=true
-MAX_RECONNECT_ATTEMPTS=5
+# Redis
+REDIS_URL=redis://localhost:6379/0
+
+# MT5
+MT5_PATH=C:\Program Files\MetaTrader 5\terminal64.exe
+MT5_TIMEOUT=60000
 
 # CORS
-ALLOWED_ORIGINS=http://localhost:3000,https://yourdomain.com
+ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:5173"]
 ```
 
-## Adding More Brokers
+## Adding New Brokers
 
 Edit `app/mt5/brokers.py`:
 
 ```python
 BROKER_CONFIGS = {
     "YourBroker": {
-        "name": "Your Broker Name",
+        "name": "Your Broker Display Name",
         "servers": [
-            {"name": "YourBroker-MT5", "description": "Main Server"},
-            {"name": "YourBroker-MT5-2", "description": "Server 2"},
+            {"name": "YourBroker-Server", "description": "Main Server"},
         ]
     },
 }
 ```
 
+## Server Requirements
+
+For a new broker server to work:
+1. The server must be added to MT5 terminal's server list at least once
+2. This can be done by manually logging in via MT5 terminal once
+3. After that, the API can connect automatically
+
+## Deployment
+
+### Windows Server Deployment
+
+1. Install Python 3.10+ and MT5 Terminal
+2. Clone the repository
+3. Run `deploy_windows.ps1`
+4. Set up as Windows Service (optional):
+   ```powershell
+   # Use NSSM or similar to run as service
+   nssm install MT5Bridge "C:\Python313\python.exe" "-m uvicorn app.main:app --host 0.0.0.0 --port 8000"
+   ```
+
+### Docker (Database Only)
+
+The `docker-compose.yml` runs PostgreSQL and Redis. The API must run on Windows.
+
+```powershell
+# Start database services
+docker-compose up -d
+
+# Run API on Windows
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
 ## Troubleshooting
 
-**MT5 won't connect**:
-- Ensure MT5 terminal is installed
-- Check server name matches exactly
-- Verify credentials
-- Check firewall settings
+### "Authorization failed" Error
+- MT5 terminal must be running
+- Enable "Allow Algo Trading" in MT5 (Tools → Options → Expert Advisors)
+- For new servers, login manually in MT5 once to add the server
 
-**WebSocket disconnects**:
-- Implement ping/pong keep-alive (included)
-- Check network stability
-- Increase timeout settings
+### "IPC timeout" Error
+- Restart MT5 terminal
+- Check if MT5 path is correct in .env
+- Ensure Python and MT5 are both 64-bit
 
-**Sync delays**:
-- Adjust `SYNC_INTERVAL_SECONDS` in .env
-- Check Redis connection
-- Monitor Celery worker logs
-
-## Production Deployment
-
-1. Use production WSGI server (Gunicorn)
-2. Set up reverse proxy (Nginx)
-3. Use managed PostgreSQL/Redis
-4. Implement proper JWT authentication
-5. Enable HTTPS for WebSocket (WSS)
-6. Set up monitoring (Sentry, Prometheus)
-7. Use environment-specific configs
+### Connection Issues
+- Verify account credentials
+- Check server name matches exactly (case-sensitive)
+- Ensure MT5 terminal has the broker's server in its list
 
 ## License
 
 MIT
-# Mt5-brigde

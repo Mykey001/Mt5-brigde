@@ -4,12 +4,27 @@ Add more brokers as needed
 """
 
 BROKER_CONFIGS = {
+    "JustMarkets": {
+        "name": "JustMarkets",
+        "servers": [
+            {"name": "JustMarkets-Demo", "description": "JustMarkets Demo Server"},
+            {"name": "JustMarkets-Live", "description": "JustMarkets Live Server"},
+        ]
+    },
+    "Vebson": {
+        "name": "Vebson",
+        "servers": [
+            {"name": "Vebson-Server", "description": "Vebson Server"},
+        ]
+    },
     "XM": {
         "name": "XM Global",
         "servers": [
             {"name": "XMGlobal-MT5", "description": "XM Global Server"},
             {"name": "XMGlobal-MT5 2", "description": "XM Global Server 2"},
             {"name": "XMGlobal-MT5 3", "description": "XM Global Server 3"},
+            {"name": "XMGlobal-MT5 4", "description": "XM Global Server 4"},
+            {"name": "XMGlobal-MT5 5", "description": "XM Global Server 5"},
         ]
     },
     "Exness": {

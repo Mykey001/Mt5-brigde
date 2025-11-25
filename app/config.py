@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from typing import List
+from typing import List, Optional
 
 class Settings(BaseSettings):
     # Database
@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     
     # MT5
     mt5_timeout: int = 60000
+    mt5_path: str = r"C:\Program Files\MetaTrader 5\terminal64.exe"
     sync_interval_seconds: int = 2
     auto_reconnect: bool = True
     max_reconnect_attempts: int = 5

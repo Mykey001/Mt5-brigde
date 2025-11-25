@@ -1,5 +1,9 @@
 version: '3.8'
 
+# NOTE: MT5 Python library ONLY works on Windows!
+# This docker-compose runs supporting services (PostgreSQL, Redis)
+# The API must run on Windows where MT5 terminal is installed.
+
 services:
   postgres:
     image: postgres:15-alpine
@@ -28,55 +32,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  api:
-    build: .
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
-    ports:
-      - "8000:8000"
-    environment:
-      - DATABASE_URL=postgresql://mt5bridge:mt5bridge_password@postgres:5432/mt5bridge
-      - REDIS_URL=redis://redis:6379/0
-    env_file:
-      - .env
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    volumes:
-      - .:/app
-    restart: unless-stopped
-
-  celery_worker:
-    build: .
-    command: celery -A app.workers.sync_worker worker --loglevel=info
-    environment:
-      - DATABASE_URL=postgresql://mt5bridge:mt5bridge_password@postgres:5432/mt5bridge
-      - REDIS_URL=redis://redis:6379/0
-    env_file:
-      - .env
-    depends_on:
-      - postgres
-      - redis
-    volumes:
-      - .:/app
-    restart: unless-stopped
-
-  celery_beat:
-    build: .
-    command: celery -A app.workers.sync_worker beat --loglevel=info
-    environment:
-      - DATABASE_URL=postgresql://mt5bridge:mt5bridge_password@postgres:5432/mt5bridge
-      - REDIS_URL=redis://redis:6379/0
-    env_file:
-      - .env
-    depends_on:
-      - postgres
-      - redis
-    volumes:
-      - .:/app
-    restart: unless-stopped
 
 volumes:
   postgres_data:
