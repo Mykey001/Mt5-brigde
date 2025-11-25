@@ -32,11 +32,30 @@ def print_error(message):
 def print_info(message):
     print(f"{Colors.YELLOW}ℹ {message}{Colors.END}")
 
+def wait_for_server(max_retries=30, delay=2):
+    """Wait for server to be ready"""
+    print_info(f"Waiting for server to be ready (max {max_retries * delay}s)...")
+    for i in range(max_retries):
+        try:
+            response = requests.get(f"{BASE_URL}/", timeout=2)
+            if response.status_code == 200:
+                print_success(f"Server ready after {(i + 1) * delay}s")
+                return True
+        except requests.exceptions.RequestException:
+            pass
+        time.sleep(delay)
+    return False
+
 def test_health_check():
     """Test 1: Health check endpoints"""
     print_test("Health Check")
     
     try:
+        # Wait for server to be ready first
+        if not wait_for_server():
+            print_error("Server did not become ready in time")
+            return False
+        
         # Root endpoint
         response = requests.get(f"{BASE_URL}/")
         assert response.status_code == 200

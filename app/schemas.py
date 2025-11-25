@@ -91,4 +91,5 @@ class BrokerServer(BaseModel):
 
 class BrokerInfo(BaseModel):
     broker_name: str
+    display_name: str
     servers: List[BrokerServer]
