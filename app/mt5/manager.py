@@ -27,8 +27,9 @@ class MT5Manager:
             )
             if 'terminal64' not in result.stdout:
                 # Start MT5 terminal
-                logger.info("Starting MT5 terminal...")
-                subprocess.Popen([settings.mt5_path], shell=False)
+                mt5_path = settings.get_mt5_path()
+                logger.info(f"Starting MT5 terminal from: {mt5_path}")
+                subprocess.Popen([mt5_path], shell=False)
                 time.sleep(5)  # Wait for MT5 to start
         except Exception as e:
             logger.warning(f"Could not check/start MT5: {e}")
@@ -38,7 +39,8 @@ class MT5Manager:
         if not self._initialized:
             self._ensure_mt5_running()
             try:
-                if mt5.initialize(path=settings.mt5_path):
+                mt5_path = settings.get_mt5_path()
+                if mt5.initialize(path=mt5_path):
                     self._initialized = True
                     logger.info("MT5 initialized successfully")
                     return True
@@ -83,7 +85,8 @@ class MT5Manager:
         # Approach 1: Initialize with all credentials at once
         logger.info(f"Attempting to connect account {login} to {server}...")
         
-        if mt5.initialize(path=settings.mt5_path, login=login, password=password, server=server, timeout=timeout):
+        mt5_path = settings.get_mt5_path()
+        if mt5.initialize(path=mt5_path, login=login, password=password, server=server, timeout=timeout):
             self._initialized = True
             self.active_connections[account_id] = True
             logger.info(f"Account {account_id} connected successfully to {server}")
@@ -96,7 +99,7 @@ class MT5Manager:
         mt5.shutdown()
         time.sleep(1)
         
-        if mt5.initialize(path=settings.mt5_path):
+        if mt5.initialize(path=mt5_path):
             logger.info("MT5 initialized, attempting login...")
             if mt5.login(login, password, server, timeout=timeout):
                 self._initialized = True
@@ -109,10 +112,22 @@ class MT5Manager:
             error2 = mt5.last_error()
             logger.warning(f"Second init failed: {error2}")
         
-        # Both approaches failed
-        error_msg = f"Login failed: {error1}"
-        logger.error(f"Account {account_id} - {error_msg}")
-        return False, error_msg
+        # Both approaches failed - provide user-friendly error message
+        error_code = error1[0] if isinstance(error1, tuple) else 0
+        error_desc = error1[1] if isinstance(error1, tuple) and len(error1) > 1 else str(error1)
+        
+        # Map common error codes to user-friendly messages
+        error_messages = {
+            10003: "MT5 terminal not responding. Please ensure MetaTrader 5 is running.",
+            10006: "Cannot connect to trade server. Check your internet connection and server name.",
+            10014: "Invalid account credentials. Please verify your login and password.",
+            10015: "Invalid account. The account may be disabled or doesn't exist.",
+            10018: "Market is closed. Try again during trading hours.",
+        }
+        
+        friendly_msg = error_messages.get(error_code, f"Connection failed: {error_desc}")
+        logger.error(f"Account {account_id} - {friendly_msg} (Code: {error_code})")
+        return False, friendly_msg
     
     def disconnect_account(self, account_id: int):
         """Disconnect account"""

@@ -198,3 +198,82 @@ async def force_sync(
     
     success = sync_service.sync_account(account, db)
     return {"success": success, "last_sync": account.last_sync}
+
+
+@router.get("/{account_id}/deals")
+async def get_account_deals(
+    account_id: int,
+    days: int = 90,
+    db: Session = Depends(get_db)
+):
+    """
+    Get deal history for an account
+    First syncs the account to ensure connection, then fetches deals
+    """
+    from ..mt5.history import get_deals_history
+    
+    account = db.query(MT5Account).filter(MT5Account.id == account_id).first()
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Account not found"
+        )
+    
+    # Ensure account is connected
+    if account.status != ConnectionStatus.CONNECTED:
+        success = sync_service.sync_account(account, db)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to connect: {account.error_message}"
+            )
+    
+    # Get deals
+    deals = get_deals_history(days)
+    
+    return {
+        "account_id": account_id,
+        "account_number": account.account_number,
+        "days": days,
+        "count": len(deals),
+        "deals": deals
+    }
+
+
+@router.get("/{account_id}/orders-history")
+async def get_account_orders_history(
+    account_id: int,
+    days: int = 90,
+    db: Session = Depends(get_db)
+):
+    """
+    Get order history for an account
+    """
+    from ..mt5.history import get_orders_history
+    
+    account = db.query(MT5Account).filter(MT5Account.id == account_id).first()
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Account not found"
+        )
+    
+    # Ensure account is connected
+    if account.status != ConnectionStatus.CONNECTED:
+        success = sync_service.sync_account(account, db)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to connect: {account.error_message}"
+            )
+    
+    # Get orders
+    orders = get_orders_history(days)
+    
+    return {
+        "account_id": account_id,
+        "account_number": account.account_number,
+        "days": days,
+        "count": len(orders),
+        "orders": orders
+    }

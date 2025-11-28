@@ -58,6 +58,21 @@ BROKER_CONFIGS = {
             {"name": "Pepperstone-MT5-Demo", "description": "Pepperstone Demo"},
         ]
     },
+    "HFM": {
+        "name": "HFM (HotForex)",
+        "servers": [
+            {"name": "HFMarketsKE-Live Server", "description": "HFM Kenya Live Server"},
+            {"name": "HFMarketsKE-Demo Server", "description": "HFM Kenya Demo Server"},
+            {"name": "HFMarketsGlobal-Live Server 3", "description": "HFM Global Live Server 3"},
+            {"name": "HFMarketsGlobal-Live Server 2", "description": "HFM Global Live Server 2"},
+            {"name": "HFMarketsGlobal-Live Server", "description": "HFM Global Live Server"},
+            {"name": "HFMarketsGlobal-Demo Server", "description": "HFM Global Demo Server"},
+            {"name": "HFMarketsSV-Live Server 3", "description": "HFM SV Live Server 3"},
+            {"name": "HFMarketsSV-Live Server 2", "description": "HFM SV Live Server 2"},
+            {"name": "HFMarketsSV-Live Server", "description": "HFM SV Live Server"},
+            {"name": "HFMarketsSV-Demo Server", "description": "HFM SV Demo Server"},
+        ]
+    },
 }
 
 def get_broker_servers(broker_name: str):
