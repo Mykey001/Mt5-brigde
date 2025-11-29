@@ -22,6 +22,7 @@ class AccountResponse(BaseModel):
     account_number: str
     server: str
     status: ConnectionStatus
+    account_name: Optional[str] = None  # Account holder's name from MT5
     balance: float
     equity: float
     margin: float

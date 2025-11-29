@@ -50,6 +50,7 @@ class DataSyncService:
                 account.margin_level = account_info["margin_level"]
                 account.leverage = account_info["leverage"]
                 account.currency = account_info["currency"]
+                account.account_name = account_info.get("name")  # Account holder's name
             
             # Sync positions
             DataSyncService._sync_positions(account, db)

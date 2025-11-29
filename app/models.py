@@ -29,6 +29,7 @@ class MT5Account(Base):
     error_message = Column(Text, nullable=True)
     
     # Account info (synced from MT5)
+    account_name = Column(String(200), nullable=True)  # Account holder's name from MT5
     balance = Column(Float, default=0.0)
     equity = Column(Float, default=0.0)
     margin = Column(Float, default=0.0)

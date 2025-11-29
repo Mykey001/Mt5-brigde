@@ -208,7 +208,7 @@ async def get_account_deals(
 ):
     """
     Get deal history for an account
-    First syncs the account to ensure connection, then fetches deals
+    Always syncs the account first to ensure we're connected to the correct account
     """
     from ..mt5.history import get_deals_history
     
@@ -219,16 +219,16 @@ async def get_account_deals(
             detail="Account not found"
         )
     
-    # Ensure account is connected
-    if account.status != ConnectionStatus.CONNECTED:
-        success = sync_service.sync_account(account, db)
-        if not success:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Failed to connect: {account.error_message}"
-            )
+    # ALWAYS sync to ensure we're connected to THIS specific account
+    # (another account may have been connected in between)
+    success = sync_service.sync_account(account, db)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to connect: {account.error_message}"
+        )
     
-    # Get deals
+    # Get deals from the now-connected account
     deals = get_deals_history(days)
     
     return {
@@ -248,6 +248,7 @@ async def get_account_orders_history(
 ):
     """
     Get order history for an account
+    Always syncs the account first to ensure we're connected to the correct account
     """
     from ..mt5.history import get_orders_history
     
@@ -258,16 +259,15 @@ async def get_account_orders_history(
             detail="Account not found"
         )
     
-    # Ensure account is connected
-    if account.status != ConnectionStatus.CONNECTED:
-        success = sync_service.sync_account(account, db)
-        if not success:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Failed to connect: {account.error_message}"
-            )
+    # ALWAYS sync to ensure we're connected to THIS specific account
+    success = sync_service.sync_account(account, db)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to connect: {account.error_message}"
+        )
     
-    # Get orders
+    # Get orders from the now-connected account
     orders = get_orders_history(days)
     
     return {
@@ -276,4 +276,46 @@ async def get_account_orders_history(
         "days": days,
         "count": len(orders),
         "orders": orders
+    }
+
+
+from pydantic import BaseModel
+
+class MigrateRequest(BaseModel):
+    from_user_id: int
+    to_user_id: int
+
+@router.post("/migrate")
+async def migrate_accounts(
+    request: MigrateRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Migrate accounts from one user_id to another
+    Used when the web app's user ID format changes
+    """
+    # Find accounts belonging to the old user_id
+    accounts = db.query(MT5Account).filter(
+        MT5Account.user_id == request.from_user_id
+    ).all()
+    
+    if not accounts:
+        return {
+            "success": True,
+            "migratedCount": 0,
+            "message": f"No accounts found for user_id {request.from_user_id}"
+        }
+    
+    # Update user_id for all found accounts
+    migrated_count = 0
+    for account in accounts:
+        account.user_id = request.to_user_id
+        migrated_count += 1
+    
+    db.commit()
+    
+    return {
+        "success": True,
+        "migratedCount": migrated_count,
+        "message": f"Migrated {migrated_count} accounts from user {request.from_user_id} to {request.to_user_id}"
     }

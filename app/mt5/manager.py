@@ -149,6 +149,9 @@ class MT5Manager:
             "margin_level": account_info.margin_level if account_info.margin > 0 else 0,
             "leverage": account_info.leverage,
             "currency": account_info.currency,
+            "name": account_info.name,  # Account holder's name
+            "login": account_info.login,
+            "server": account_info.server,
         }
     
     def get_positions(self) -> List[Dict]:
