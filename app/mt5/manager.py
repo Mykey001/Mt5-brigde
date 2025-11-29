@@ -172,7 +172,7 @@ class MT5Manager:
                 "tp": pos.tp if pos.tp > 0 else None,
                 "profit": pos.profit,
                 "swap": pos.swap,
-                "commission": pos.commission,
+                "commission": 0.0,  # Commission is not available on open positions, only on deals
                 "open_time": datetime.fromtimestamp(pos.time),
             }
             for pos in positions

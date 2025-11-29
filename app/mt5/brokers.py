@@ -62,6 +62,7 @@ BROKER_CONFIGS = {
         "name": "HFM (HotForex)",
         "servers": [
             {"name": "HFMarketsKE-Live Server", "description": "HFM Kenya Live Server"},
+            {"name": "HFMarketsKE-Live2", "description": "HFM Kenya Live Server 2"},
             {"name": "HFMarketsKE-Demo Server", "description": "HFM Kenya Demo Server"},
             {"name": "HFMarketsGlobal-Live Server 3", "description": "HFM Global Live Server 3"},
             {"name": "HFMarketsGlobal-Live Server 2", "description": "HFM Global Live Server 2"},
