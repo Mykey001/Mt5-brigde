@@ -4,7 +4,7 @@ import logging
 
 from .config import settings
 from .database import init_db
-from .api import accounts, websocket
+from .api import accounts, websocket, market_data
 from .mt5.manager import mt5_manager
 
 # Configure logging
@@ -33,6 +33,7 @@ app.add_middleware(
 # Include routers
 app.include_router(accounts.router, prefix="/api")
 app.include_router(websocket.router, prefix="/api")
+app.include_router(market_data.router, prefix="/api")
 
 @app.on_event("startup")
 async def startup_event():
